@@ -59,6 +59,34 @@ class MasterRequestsTest extends TestCase
         ]);
     }
 
+    public function test_second_parallel_take_gets_conflict(): void
+    {
+        $master = User::factory()->master()->create();
+
+        $request = Request::factory()->create([
+            'assigned_to' => $master->id,
+            'status' => Request::STATUS_ASSIGNED,
+        ]);
+
+        // Первый «параллельный» запрос успешно переводит заявку в in_progress.
+        $first = $this->actingAs($master, 'sanctum')
+            ->postJson("/api/master/requests/{$request->id}/take");
+        $first->assertOk();
+
+        // Второй запрос, пришедший чуть позже, имитирует гонку:
+        // он видит уже обновлённое состояние и получает 409.
+        $second = $this->actingAs($master, 'sanctum')
+            ->postJson("/api/master/requests/{$request->id}/take");
+
+        $second->assertStatus(409);
+
+        $this->assertDatabaseHas('requests', [
+            'id' => $request->id,
+            'status' => Request::STATUS_IN_PROGRESS,
+            'assigned_to' => $master->id,
+        ]);
+    }
+
     public function test_master_cannot_take_not_assigned_or_wrong_status(): void
     {
         $master = User::factory()->master()->create();
