@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\HealthController;
 use App\Http\Controllers\Api\RequestController;
+use App\Http\Controllers\Api\MasterRequestController;
 
 // Публичные
 Route::get('/health', [HealthController::class, 'index']);
@@ -20,4 +21,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/requests/{request}/take', [RequestController::class, 'takeInWork'])
         ->middleware('role:master')
         ->name('requests.take');
+
+    Route::prefix('master')->middleware('role:master')->group(function () {
+        Route::get('/requests', [MasterRequestController::class, 'index'])
+            ->name('master.requests.index');
+        Route::post('/requests/{request}/take', [MasterRequestController::class, 'take'])
+            ->name('master.requests.take');
+        Route::post('/requests/{request}/complete', [MasterRequestController::class, 'complete'])
+            ->name('master.requests.complete');
+    });
 });
