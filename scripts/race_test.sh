@@ -43,23 +43,22 @@ fi
 echo "   Найдена заявка ID=$REQUEST_ID"
 echo ""
 
-# Два параллельных запроса
+# Два параллельных запроса (body в файл, http_code в отдельный)
 echo "3. Два параллельных запроса take..."
-curl -s -w "\n%{http_code}" -o /tmp/race_r1.txt -X POST "$API/api/master/requests/$REQUEST_ID/take" \
+curl -s -o /tmp/race_r1.txt -w "%{http_code}" -X POST "$API/api/master/requests/$REQUEST_ID/take" \
   -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" &
+  -H "Content-Type: application/json" > /tmp/race_code1.txt &
 PID1=$!
 
-curl -s -w "\n%{http_code}" -o /tmp/race_r2.txt -X POST "$API/api/master/requests/$REQUEST_ID/take" \
+curl -s -o /tmp/race_r2.txt -w "%{http_code}" -X POST "$API/api/master/requests/$REQUEST_ID/take" \
   -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" &
+  -H "Content-Type: application/json" > /tmp/race_code2.txt &
 PID2=$!
 
 wait $PID1 $PID2 2>/dev/null || true
 
-# HTTP-код в последней строке файла
-R1=$(tail -1 /tmp/race_r1.txt 2>/dev/null || echo "?")
-R2=$(tail -1 /tmp/race_r2.txt 2>/dev/null || echo "?")
+R1=$(cat /tmp/race_code1.txt 2>/dev/null || echo "?")
+R2=$(cat /tmp/race_code2.txt 2>/dev/null || echo "?")
 
 echo ""
 echo "4. Результаты (HTTP-коды):"
