@@ -23,12 +23,15 @@
           Настройки
         </RouterLink>
         <div class="app-sidebar__user">
-          <div class="app-sidebar__user-avatar">И</div>
+          <div class="app-sidebar__user-avatar">{{ userInitials }}</div>
           <div class="app-sidebar__user-info">
-            <span class="app-sidebar__user-name">Иван Мастеров</span>
+            <span class="app-sidebar__user-name">{{ userName }}</span>
             <span class="app-sidebar__user-role">Мастер</span>
           </div>
         </div>
+        <button type="button" class="app-sidebar__logout" @click="handleLogout">
+          Выйти
+        </button>
       </div>
     </aside>
     <div class="app-main">
@@ -50,3 +53,32 @@
     </div>
   </div>
 </template>
+
+<script setup>
+import { computed } from 'vue'
+import { logout } from '../api/requests'
+
+const authUser = computed(() => {
+  try {
+    const raw = localStorage.getItem('auth_user')
+    return raw ? JSON.parse(raw) : null
+  } catch {
+    return null
+  }
+})
+
+const userName = computed(() => authUser.value?.name ?? 'Мастер')
+const userInitials = computed(() => {
+  const name = authUser.value?.name ?? ''
+  return name
+    .split(' ')
+    .map((s) => s[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase() || 'М'
+})
+
+function handleLogout() {
+  logout()
+}
+</script>

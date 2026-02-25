@@ -41,6 +41,9 @@
             <span class="app-sidebar__user-role">Старший диспетчер</span>
           </div>
         </div>
+        <button type="button" class="app-sidebar__logout" @click="handleLogout">
+          Выйти
+        </button>
       </div>
     </aside>
     <div class="app-main">
@@ -54,7 +57,7 @@
             <img src="/icon-bell.svg" alt="" />
             <span class="app-header__badge"></span>
           </button>
-          <RouterLink to="/app/requests/create" class="app-header__btn-primary">
+          <RouterLink to="/dispatcher/requests/create" class="app-header__btn-primary">
             <img src="/icon-plus.svg" alt="" class="app-header__btn-icon-svg" />
             Новая заявка
           </RouterLink>
@@ -66,3 +69,11 @@
     </div>
   </div>
 </template>
+
+<script setup>
+import { logout } from '../api/requests'
+
+function handleLogout() {
+  logout()
+}
+</script>

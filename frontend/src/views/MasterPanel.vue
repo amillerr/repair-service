@@ -29,7 +29,7 @@
             <th>Клиент</th>
             <th>Телефон</th>
             <th>Адрес</th>
-            <th>Тип услуги</th>
+            <th>Описание проблемы</th>
             <th>Статус</th>
             <th class="master-panel__th-actions">Действия</th>
           </tr>
@@ -49,7 +49,7 @@
             </td>
             <td>{{ row.phone }}</td>
             <td>{{ row.address }}</td>
-            <td>{{ row.serviceType }}</td>
+            <td class="master-panel__problem-cell">{{ row.problemText }}</td>
             <td>
               <span class="master-panel__status" :class="`master-panel__status--${row.statusType}`">
                 {{ row.status }}
@@ -70,9 +70,6 @@
                 <template v-else-if="row.statusType === 'done'">
                   <span class="master-panel__completed">Выполнена</span>
                 </template>
-                <button type="button" class="master-panel__btn-dots" aria-label="Меню">
-                  <img src="/icon-dots.svg" alt="" />
-                </button>
               </div>
             </td>
           </tr>
@@ -93,11 +90,15 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { getMasterRequests, takeRequest, completeRequest } from '../api/requests'
+import { useToast } from '../composables/useToast'
 
 const activeTab = ref('assigned')
 const loading = ref(false)
+const { add: toast } = useToast()
+const previousTaskIds = ref(new Set())
+const hasInitiallyLoaded = ref(false)
 
 const tabs = [
   { id: 'assigned', label: 'Назначенные' },
@@ -105,52 +106,22 @@ const tabs = [
   { id: 'done', label: 'Выполненные' },
 ]
 
+// Фильтр: вкладка -> параметр API (Laravel: assigned, in_progress, done)
 const STATUS_MAP = {
   assigned: 'assigned',
-  progress: 'progress',
+  progress: 'in_progress',
   done: 'done',
 }
 
-const tasks = ref([
-  {
-    id: '#REQ-4828',
-    clientName: 'Анна Сидорова',
-    initials: 'АС',
-    avatarColor: 'blue',
-    phone: '+7 (900) 010-5678',
-    address: 'пр. Мира, 45, Санкт-Петербург',
-    serviceType: 'Сантехника',
-    status: 'Назначена',
-    statusType: 'assigned',
-  },
-  {
-    id: '#REQ-4827',
-    clientName: 'Руслан Белый',
-    initials: 'РБ',
-    avatarColor: 'gray',
-    phone: '+7 (900) 010-9012',
-    address: 'ул. Садовая, 78, Казань',
-    serviceType: 'Электрика',
-    status: 'В работе',
-    statusType: 'progress',
-  },
-  {
-    id: '#REQ-4826',
-    clientName: 'Алиса Зеленая',
-    initials: 'АЗ',
-    avatarColor: 'gray',
-    phone: '+7 (900) 010-3456',
-    address: 'б-р Юности, 32, Новосибирск',
-    serviceType: 'Отопление',
-    status: 'Выполнена',
-    statusType: 'done',
-  },
-])
+const tasks = ref([])
+
+const toStatusType = (s) => (s === 'in_progress' ? 'progress' : s ?? '')
 
 const filteredTasks = computed(() => {
-  const status = STATUS_MAP[activeTab.value]
-  if (!status) return tasks.value
-  return tasks.value.filter((t) => t.statusType === status)
+  const apiStatus = STATUS_MAP[activeTab.value]
+  if (!apiStatus) return tasks.value
+  const statusType = apiStatus === 'in_progress' ? 'progress' : apiStatus
+  return tasks.value.filter((t) => t.statusType === statusType)
 })
 
 const totalCount = computed(() => tasks.value.length)
@@ -160,28 +131,54 @@ const rangeStart = computed(() =>
 )
 const rangeEnd = computed(() => filteredTasks.value.length)
 
-onMounted(async () => {
+const POLL_INTERVAL_MS = 15_000
+
+async function fetchTasks(showLoading = false) {
   try {
-    loading.value = true
-    const data = await getMasterRequests({ status: activeTab.value })
+    if (showLoading) loading.value = true
+    const data = await getMasterRequests({})
     if (data?.data?.length) {
-      tasks.value = data.data.map((r) => ({
+      const newTasks = data.data.map((r) => ({
         id: r.id,
         clientName: r.client_name ?? r.clientName,
         initials: (r.client_name ?? '??').split(' ').map((s) => s[0]).join('').slice(0, 2).toUpperCase(),
         avatarColor: 'gray',
         phone: r.phone ?? '',
         address: r.address ?? '',
-        serviceType: r.service_type ?? r.serviceType ?? '—',
+        problemText: r.problem_text ?? r.problemText ?? '—',
         status: r.status_label ?? r.status,
-        statusType: r.status ?? r.status_type,
+        statusType: toStatusType(r.status),
       }))
+      const newIds = new Set(newTasks.map((t) => t.id))
+      const prevIds = previousTaskIds.value
+      if (hasInitiallyLoaded.value) {
+        const added = newTasks.filter((t) => !prevIds.has(t.id))
+        if (added.length > 0) {
+          toast(added.length === 1 ? 'Назначена новая заявка' : `Назначено заявок: ${added.length}`, {
+            type: 'info',
+          })
+        }
+      }
+      hasInitiallyLoaded.value = true
+      previousTaskIds.value = newIds
+      tasks.value = newTasks
     }
   } catch {
-    // используем mock-данные
+    // молча при ошибке (например, при потере сети)
   } finally {
     loading.value = false
   }
+}
+
+let pollTimer = null
+
+onMounted(() => {
+  fetchTasks(true)
+  pollTimer = setInterval(() => fetchTasks(false), POLL_INTERVAL_MS)
+})
+
+onUnmounted(() => {
+  if (pollTimer) clearInterval(pollTimer)
 })
 
 async function takeInProgress(row) {

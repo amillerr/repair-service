@@ -74,15 +74,58 @@
               <template v-else-if="row.statusType === 'canceled'">
                 <span class="requests-list__not-assigned">Не назначен</span>
               </template>
-              <button v-else type="button" class="requests-list__assign">
-                <img src="/icon-user.svg" alt="" />
-                Назначить мастера
-              </button>
+              <div v-else class="requests-list__assign-wrap">
+                <button
+                  type="button"
+                  class="requests-list__assign"
+                  :class="{ 'requests-list__assign--open': assignDropdown === row.id }"
+                  @click.stop="toggleAssignDropdown(row.id)"
+                >
+                  <img src="/icon-user.svg" alt="" />
+                  Назначить мастера
+                </button>
+                <div
+                  v-if="assignDropdown === row.id"
+                  class="requests-list__dropdown"
+                  @click.stop
+                >
+                  <button
+                    v-for="m in masters"
+                    :key="m.id"
+                    type="button"
+                    class="requests-list__dropdown-item"
+                    @click="doAssign(row, m)"
+                  >
+                    {{ m.name }}
+                  </button>
+                </div>
+              </div>
             </td>
             <td class="requests-list__td-actions">
-              <button type="button" class="requests-list__btn-dots" aria-label="Меню">
-                <img src="/icon-dots.svg" alt="" />
-              </button>
+              <div class="requests-list__menu-wrap">
+                <button
+                  type="button"
+                  class="requests-list__btn-dots"
+                  aria-label="Меню"
+                  @click.stop="menuOpenId = menuOpenId === row.id ? null : row.id"
+                >
+                  <img src="/icon-dots.svg" alt="" />
+                </button>
+                <div
+                  v-if="menuOpenId === row.id"
+                  class="requests-list__dropdown requests-list__dropdown--menu"
+                  @click.stop
+                >
+                  <button
+                    v-if="!['done', 'canceled'].includes(row.statusType)"
+                    type="button"
+                    class="requests-list__dropdown-item requests-list__dropdown-item--danger"
+                    @click="doCancel(row)"
+                  >
+                    Отменить заявку
+                  </button>
+                </div>
+              </div>
             </td>
           </tr>
         </tbody>
@@ -102,11 +145,19 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
-import { getDispatcherRequests } from '../api/requests'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+import {
+  getDispatcherRequests,
+  getMasters,
+  assignMaster,
+  cancelRequest,
+} from '../api/requests'
 
 const activeTab = ref('all')
 const loading = ref(false)
+const masters = ref([])
+const assignDropdown = ref(null)
+const menuOpenId = ref(null)
 
 const tabs = [
   { id: 'all', label: 'Все' },
@@ -115,10 +166,11 @@ const tabs = [
   { id: 'done', label: 'Выполненные' },
 ]
 
+// Фильтр: вкладка -> параметр API (Laravel: new, assigned, in_progress, done, canceled)
 const STATUS_MAP = {
   all: null,
   new: 'new',
-  progress: 'progress',
+  progress: 'in_progress',
   done: 'done',
 }
 
@@ -181,9 +233,9 @@ const requests = ref([
 ])
 
 const filteredRequests = computed(() => {
-  const status = STATUS_MAP[activeTab.value]
-  if (!status) return requests.value
-  return requests.value.filter((r) => r.statusType === status)
+  const apiStatus = STATUS_MAP[activeTab.value]
+  if (!apiStatus) return requests.value
+  return requests.value.filter((r) => r.statusType === (apiStatus === 'in_progress' ? 'progress' : apiStatus))
 })
 
 const totalCount = computed(() => requests.value.length)
@@ -193,12 +245,22 @@ const rangeStart = computed(() =>
 )
 const rangeEnd = computed(() => filteredRequests.value.length)
 
-onMounted(async () => {
+const toStatusType = (s) => (s === 'in_progress' ? 'progress' : s ?? '')
+
+const POLL_INTERVAL_MS = 15_000
+
+async function fetchRequests(showLoading = false) {
   try {
-    loading.value = true
-    const data = await getDispatcherRequests({ status: activeTab.value })
-    if (data?.data?.length) {
-      requests.value = data.data.map((r) => ({
+    if (showLoading) loading.value = true
+    const [reqData, mastersData] = await Promise.all([
+      getDispatcherRequests({}),
+      getMasters(),
+    ])
+    if (mastersData?.data?.length) {
+      masters.value = mastersData.data
+    }
+    if (reqData?.data?.length) {
+      requests.value = reqData.data.map((r) => ({
         id: r.id,
         clientName: r.client_name ?? r.clientName,
         initials: (r.client_name ?? '??').split(' ').map((s) => s[0]).join('').slice(0, 2).toUpperCase(),
@@ -206,14 +268,61 @@ onMounted(async () => {
         phone: r.phone ?? '',
         address: r.address ?? '',
         status: r.status_label ?? r.status,
-        statusType: r.status ?? r.status_type,
+        statusType: toStatusType(r.status),
         master: r.master_name ?? r.master,
       }))
     }
   } catch {
-    // используем mock-данные
+    // молча при ошибке
   } finally {
     loading.value = false
   }
+}
+
+function toggleAssignDropdown(rowId) {
+  assignDropdown.value = assignDropdown.value === rowId ? null : rowId
+  if (assignDropdown.value) menuOpenId.value = null
+}
+
+async function doAssign(row, master) {
+  try {
+    await assignMaster(row.id, master.id)
+    row.master = master.name
+    row.statusType = 'assigned'
+    row.status = 'Назначена'
+  } catch {
+    // ошибка уже показана axios interceptor
+  }
+  assignDropdown.value = null
+}
+
+async function doCancel(row) {
+  try {
+    await cancelRequest(row.id)
+    row.statusType = 'canceled'
+    row.status = 'Отменена'
+    row.master = null
+  } catch {
+    // ошибка уже показана axios interceptor
+  }
+  menuOpenId.value = null
+}
+
+function handleClickOutside() {
+  assignDropdown.value = null
+  menuOpenId.value = null
+}
+
+let pollTimer = null
+
+onMounted(() => {
+  fetchRequests(true)
+  pollTimer = setInterval(() => fetchRequests(false), POLL_INTERVAL_MS)
+  document.addEventListener('click', handleClickOutside)
+})
+
+onUnmounted(() => {
+  if (pollTimer) clearInterval(pollTimer)
+  document.removeEventListener('click', handleClickOutside)
 })
 </script>

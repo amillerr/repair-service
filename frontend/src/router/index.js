@@ -1,7 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import Landing from '../views/Landing.vue'
 import Login from '../views/Login.vue'
-import AppLayout from '../layouts/AppLayout.vue'
 import DispatcherLayout from '../layouts/DispatcherLayout.vue'
 import MasterLayout from '../layouts/MasterLayout.vue'
 import CreateRequest from '../views/CreateRequest.vue'
@@ -16,28 +15,11 @@ const routes = [
   { path: '/login', name: 'login', component: Login },
   {
     path: '/app',
-    component: AppLayout,
-    children: [
-      { path: '', redirect: { name: 'create-request' } },
-      {
-        path: 'requests/create',
-        name: 'create-request',
-        component: CreateRequest,
-        meta: { title: 'Создать заявку' },
-      },
-      {
-        path: 'clients',
-        name: 'clients',
-        component: Clients,
-        meta: { title: 'Клиенты' },
-      },
-      {
-        path: 'settings',
-        name: 'settings',
-        component: Settings,
-        meta: { title: 'Настройки' },
-      },
-    ],
+    redirect: '/dispatcher',
+  },
+  {
+    path: '/app/:pathMatch(.*)*',
+    redirect: (to) => `/dispatcher${to.path.replace('/app', '')}`,
   },
   {
     path: '/dispatcher',
@@ -55,6 +37,12 @@ const routes = [
         name: 'requests-list',
         component: RequestsList,
         meta: { title: 'Заявки на сервис' },
+      },
+      {
+        path: 'requests/create',
+        name: 'create-request',
+        component: CreateRequest,
+        meta: { title: 'Создать заявку' },
       },
       {
         path: 'masters',
@@ -112,6 +100,17 @@ const routes = [
 const router = createRouter({
   history: createWebHistory(),
   routes,
+})
+
+const PUBLIC_PATHS = ['/', '/login']
+
+router.beforeEach((to) => {
+  const hasToken = !!localStorage.getItem('auth_token')
+  const isPublic = PUBLIC_PATHS.includes(to.path)
+  if (!isPublic && !hasToken) {
+    return { path: '/login', query: { redirect: to.fullPath } }
+  }
+  return true
 })
 
 export default router
