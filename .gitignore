@@ -1,2 +1,13 @@
 PROMPTS.md
 
+# Backend (Laravel)
+backend/vendor/
+backend/node_modules/
+backend/.env
+backend/.phpunit.result.cache
+backend/bootstrap/cache/*
+backend/storage/logs/*
+backend/storage/framework/*
+backend/database/*.sqlite
+backend/database/database.sqlite
+
