@@ -1,4 +1,5 @@
 
+
 # Backend (Laravel)
 backend/vendor/
 backend/node_modules/
@@ -9,4 +10,9 @@ backend/storage/logs/*
 backend/storage/framework/*
 backend/database/*.sqlite
 backend/database/database.sqlite
+
+# Деплой (пароли)
+scripts/deploy.env
+
+DECISIONS.md
 
