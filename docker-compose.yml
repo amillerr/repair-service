@@ -42,7 +42,7 @@ services:
       POSTGRES_USER: repair_user
       POSTGRES_PASSWORD: repair_password
     ports:
-      - "5433:5432"
+      - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
 

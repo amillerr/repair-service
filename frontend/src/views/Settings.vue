@@ -4,3 +4,4 @@
     <p class="dashboard__desc">Параметры системы</p>
   </div>
 </template>
+
