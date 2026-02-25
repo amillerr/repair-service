@@ -234,8 +234,10 @@ const requests = ref([
 
 const filteredRequests = computed(() => {
   const apiStatus = STATUS_MAP[activeTab.value]
-  if (!apiStatus) return requests.value
-  return requests.value.filter((r) => r.statusType === (apiStatus === 'in_progress' ? 'progress' : apiStatus))
+  let list = apiStatus
+    ? requests.value.filter((r) => r.statusType === (apiStatus === 'in_progress' ? 'progress' : apiStatus))
+    : requests.value
+  return [...list].sort((a, b) => (Number(a.id) || 0) - (Number(b.id) || 0))
 })
 
 const totalCount = computed(() => requests.value.length)

@@ -394,6 +394,7 @@ body {
 @media (min-width: 768px) {
   .cta-banner {
     padding: 64px 80px;
+    margin-bottom: 48px;
   }
 }
 
@@ -855,6 +856,9 @@ body {
   align-items: center;
   gap: 12px;
   padding: 24px;
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
 }
 
 .app-sidebar__logo {
