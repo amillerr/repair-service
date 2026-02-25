@@ -12,19 +12,11 @@
 
 ## Быстрый старт
 
-### 1. Запуск
-
 ```bash
-docker compose up -d --build
+./scripts/start.sh
 ```
 
-### 2. Миграции и сиды
-
-```bash
-docker compose exec backend php artisan migrate --seed --force
-```
-
-### 3. Доступ
+Скрипт сам: создаёт `.env`, поднимает Docker, запускает миграции и сиды.
 
 | Сервис   | URL                      |
 |----------|--------------------------|
