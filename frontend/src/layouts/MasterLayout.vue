@@ -1,12 +1,12 @@
 <template>
   <div class="app-layout">
     <aside class="app-sidebar app-sidebar--master">
-      <div class="app-sidebar__brand">
+      <RouterLink to="/master/tasks" class="app-sidebar__brand">
         <div class="app-sidebar__logo">
           <img src="/logo.svg" alt="" class="app-sidebar__logo-icon" />
         </div>
         <span class="app-sidebar__title">Портал мастера</span>
-      </div>
+      </RouterLink>
       <nav class="app-sidebar__nav">
         <RouterLink to="/master/tasks" class="app-sidebar__link" active-class="app-sidebar__link--active">
           <img src="/icon-create.svg" alt="" class="app-sidebar__icon" />
