@@ -17,9 +17,9 @@ else
 fi
 
 echo "=== 1. .env ==="
-if [ ! -f .env ]; then
-  cp .env.example .env
-  echo "Создан .env из .env.example"
+if [ ! -f backend/.env ]; then
+  cp backend/.env.example backend/.env
+  echo "Создан backend/.env из backend/.env.example"
 fi
 
 echo "=== 2. Запуск контейнеров ==="
