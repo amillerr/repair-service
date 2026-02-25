@@ -1,12 +1,12 @@
 <template>
   <div class="app-layout">
     <aside class="app-sidebar app-sidebar--dispatcher">
-      <div class="app-sidebar__brand">
+      <RouterLink to="/dispatcher/dashboard" class="app-sidebar__brand">
         <div class="app-sidebar__logo">
           <img src="/logo.svg" alt="" class="app-sidebar__logo-icon" />
         </div>
         <span class="app-sidebar__title">Портал диспетчера</span>
-      </div>
+      </RouterLink>
       <nav class="app-sidebar__nav">
         <RouterLink to="/dispatcher/dashboard" class="app-sidebar__link" active-class="app-sidebar__link--active">
           <img src="/icon-dashboard.svg" alt="" class="app-sidebar__icon" />
