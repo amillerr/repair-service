@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\RequestAuditLogResource;
 use App\Http\Resources\RequestResource;
 use App\Models\Request as RepairRequest;
 use App\Models\User;
@@ -16,6 +17,20 @@ class MasterRequestController extends Controller
     public function __construct(
         private readonly RequestService $service
     ) {
+    }
+
+    public function audit(HttpRequest $httpRequest, RepairRequest $request): JsonResponse
+    {
+        /** @var User $master */
+        $master = $httpRequest->user();
+
+        if ($request->assigned_to !== $master->id) {
+            return response()->json(['message' => 'Forbidden'], 403);
+        }
+
+        $logs = $request->auditLogs()->orderByDesc('created_at')->get();
+
+        return RequestAuditLogResource::collection($logs)->response();
     }
 
     public function index(HttpRequest $request): JsonResponse
@@ -52,15 +67,13 @@ class MasterRequestController extends Controller
         /** @var User $master */
         $master = $httpRequest->user();
 
-        // Заявка должна быть назначена этому мастеру и иметь статус ASSIGNED.
-        if ($request->assigned_to !== $master->id || $request->status !== RepairRequest::STATUS_ASSIGNED) {
-            return response()->json(['message' => 'Request cannot be taken'], 409);
+        try {
+            $updated = $this->service->masterTake($request, $master);
+        } catch (\RuntimeException $e) {
+            return response()->json(['message' => $e->getMessage()], 409);
         }
 
-        $request->status = RepairRequest::STATUS_IN_PROGRESS;
-        $request->save();
-
-        return (new RequestResource($request))->response();
+        return (new RequestResource($updated))->response();
     }
 
     public function complete(HttpRequest $httpRequest, RepairRequest $request): JsonResponse
@@ -68,15 +81,13 @@ class MasterRequestController extends Controller
         /** @var User $master */
         $master = $httpRequest->user();
 
-        // Завершать может только тот мастер, кому назначена заявка, и только из in_progress.
-        if ($request->assigned_to !== $master->id || $request->status !== RepairRequest::STATUS_IN_PROGRESS) {
-            return response()->json(['message' => 'Request cannot be completed'], 409);
+        try {
+            $updated = $this->service->complete($request, $master);
+        } catch (\RuntimeException $e) {
+            return response()->json(['message' => $e->getMessage()], 409);
         }
 
-        $request->status = RepairRequest::STATUS_DONE;
-        $request->save();
-
-        return (new RequestResource($request))->response();
+        return (new RequestResource($updated))->response();
     }
 }
 

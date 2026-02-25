@@ -25,6 +25,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Панель диспетчера
     Route::prefix('dispatcher')->middleware('role:dispatcher')->group(function () {
+        Route::get('/requests/{request}/audit', [DispatcherRequestController::class, 'audit'])
+            ->name('dispatcher.requests.audit');
         Route::get('/requests', [DispatcherRequestController::class, 'index'])
             ->name('dispatcher.requests.index');
         Route::get('/masters', [DispatcherRequestController::class, 'masters'])
@@ -39,6 +41,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Панель мастера
     Route::prefix('master')->middleware('role:master')->group(function () {
+        Route::get('/requests/{request}/audit', [MasterRequestController::class, 'audit'])
+            ->name('master.requests.audit');
         Route::get('/requests', [MasterRequestController::class, 'index'])
             ->name('master.requests.index');
         Route::post('/requests/{request}/take', [MasterRequestController::class, 'take'])

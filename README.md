@@ -157,6 +157,18 @@ curl -X POST http://localhost:8000/api/master/requests/1/complete \
   -H "Authorization: Bearer <TOKEN>"
 ```
 
+### История заявки (audit log)
+
+```bash
+# Диспетчер
+curl http://localhost:8000/api/dispatcher/requests/1/audit \
+  -H "Authorization: Bearer <TOKEN>"
+
+# Мастер (только свои заявки)
+curl http://localhost:8000/api/master/requests/1/audit \
+  -H "Authorization: Bearer <TOKEN>"
+```
+
 ---
 
 ## Как проверить race condition
