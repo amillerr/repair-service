@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\RequestAuditLogResource;
 use App\Http\Resources\RequestResource;
 use App\Models\Request as RepairRequest;
 use App\Models\User;
@@ -16,6 +17,13 @@ class DispatcherRequestController extends Controller
     public function __construct(
         private readonly RequestService $service
     ) {
+    }
+
+    public function audit(HttpRequest $httpRequest, RepairRequest $request): JsonResponse
+    {
+        $logs = $request->auditLogs()->orderByDesc('created_at')->get();
+
+        return RequestAuditLogResource::collection($logs)->response();
     }
 
     public function index(HttpRequest $request): JsonResponse
@@ -49,6 +57,9 @@ class DispatcherRequestController extends Controller
             'master_id' => ['required', 'integer', 'exists:users,id'],
         ]);
 
+        /** @var User $dispatcher */
+        $dispatcher = $httpRequest->user();
+
         /** @var User $master */
         $master = User::query()->find($httpRequest->input('master_id'));
 
@@ -56,16 +67,13 @@ class DispatcherRequestController extends Controller
             return response()->json(['message' => 'User is not master'], 422);
         }
 
-        // Бизнес‑правило: нельзя назначать отменённые и завершённые заявки.
-        if (in_array($request->status, [RepairRequest::STATUS_CANCELED, RepairRequest::STATUS_DONE], true)) {
-            return response()->json(['message' => 'Cannot assign canceled or done request'], 409);
+        try {
+            $updated = $this->service->assign($request, $dispatcher, $master);
+        } catch (\RuntimeException $e) {
+            return response()->json(['message' => $e->getMessage()], 409);
         }
 
-        $request->assigned_to = $master->id;
-        $request->status = RepairRequest::STATUS_ASSIGNED;
-        $request->save();
-
-        return (new RequestResource($request))->response();
+        return (new RequestResource($updated))->response();
     }
 
     public function masters(): JsonResponse
@@ -91,15 +99,16 @@ class DispatcherRequestController extends Controller
 
     public function cancel(HttpRequest $httpRequest, RepairRequest $request): JsonResponse
     {
-        // Нельзя отменять уже выполненные заявки.
-        if ($request->status === RepairRequest::STATUS_DONE) {
-            return response()->json(['message' => 'Cannot cancel done request'], 409);
+        /** @var User $dispatcher */
+        $dispatcher = $httpRequest->user();
+
+        try {
+            $updated = $this->service->cancel($request, $dispatcher);
+        } catch (\RuntimeException $e) {
+            return response()->json(['message' => $e->getMessage()], 409);
         }
 
-        $request->status = RepairRequest::STATUS_CANCELED;
-        $request->save();
-
-        return (new RequestResource($request))->response();
+        return (new RequestResource($updated))->response();
     }
 }
 

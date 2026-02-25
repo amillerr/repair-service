@@ -7,6 +7,7 @@ use App\Http\Requests\StoreRequestRequest;
 use App\Http\Resources\RequestResource;
 use App\Models\Request as RepairRequest;
 use App\Models\User;
+use App\Services\RequestAuditService;
 use App\Services\RequestService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -15,13 +16,15 @@ use RuntimeException;
 class RequestController extends Controller
 {
     public function __construct(
-        private readonly RequestService $service
+        private readonly RequestService $service,
+        private readonly RequestAuditService $audit
     ) {
     }
 
     public function store(StoreRequestRequest $request): JsonResponse
     {
         $repairRequest = RepairRequest::query()->create($request->validated());
+        $this->audit->logCreated($repairRequest, $request->user());
 
         return (new RequestResource($repairRequest))
             ->response()

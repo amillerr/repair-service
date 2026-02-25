@@ -37,4 +37,9 @@ class Request extends Model
     {
         return $this->belongsTo(User::class, 'assigned_to');
     }
+
+    public function auditLogs(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(RequestAuditLog::class);
+    }
 }
